@@ -11,13 +11,13 @@ The starting point is a `tosca.py` command, which is extensible by attaching you
 
 TOSCA's object-oriented declarative format lends itself pretty well to being implemented in Python ... for the most part:
 
-* "Node types" and "data types" become Python classes. Obviously.
-* "Node templates" become instances of these classes.
-* "Relationships" between node templates also become classes.
-* "Inputs" become method arguments.
-* "Properties" become class properties, and in some cases are initialized by class constructors. 
+* `node_types` and `data_types` become Python classes. Obviously.
+* `node_templates` become instances of these classes.
+* `relationships` between node templates also become classes.
+* `inputs` become method arguments.
+* `properties` become class properties, and in some cases are initialized by class constructors. 
 * Python supports a dot notation for namespaces, though it does require multiple files and directories to achieve it, and these will. This actually lends itself to nicely organized code.
-* This means that YAML "imports" do not exactly become Python imports. Python imports depend on the namespace structure.
+* This means that YAML `imports` do not exactly become Python imports. Python imports depend on the namespace structure.
 * Python does not support interface-oriented programming, though this is used extensively in TOSCA. For this reason, we've implemented our own little [interface mechanism for Python](tosca-py/blob/master/tosca/interfaceable.py). It could be useful in other projects, too!
 
 Quickstart
@@ -44,3 +44,8 @@ See the Python output in the `output` directory. Yay! You can give it a test run
     PYTHONPATH=$PYTHONPATH:tosca python output/simple.py
 
 The example is taken from the [Cloudify NodeCellar Example](https://github.com/cloudify-cosmo/cloudify-nodecellar-example).
+
+TODO
+----
+
+Support `policy_types` and `policy_triggers`
