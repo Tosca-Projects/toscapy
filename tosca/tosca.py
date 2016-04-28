@@ -1,29 +1,5 @@
 #!/usr/bin/env python
 
-'''
-TOSCA.py
-
-  tosca touch myblueprint
-
-Looks for myblueprint.yaml or myblueprint.py. Chooses the newer one, converts to the other version. Renames existing files with .bak.#.
-
-The myblueprint.py will put all structures in a ctx.
-The parser must be extensible in some way.
-
-The myblueprint.py will define a list of engines. (Or is there a default configured list of engines?)
-Arguments will be parsed and placed in the Command instance.
-Command will be sent to the engines in order. (The first engine is always tosca.py itself, the "default" engine.)
-If an engine handles the comment, it can set the command.complete = True to stop handling.
-
-e.g.:
-
-  tosca validate myblueprint
-  tosca upload myblueprint
-  tosca deploy myblueprint
-
-Engines can modify the ctx and also put their own stuff in it.
-'''
-
 import sys
 from engine import Command
 from default_engine import DefaultEngine

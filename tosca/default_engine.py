@@ -49,6 +49,9 @@ def join_type_name(module_name, class_name):
     else:
         return class_name
 
+def one_liner(value):
+    return value.strip().replace('\n', ' ')
+
 class PythonModule:
     def __init__(self, yaml_name, module_name, output_dir, executable=False):
         self.yaml_name = yaml_name
@@ -63,7 +66,7 @@ class PythonModule:
 
         if self.executable:
             self.writeh('#!/usr/bin/env python\n\n')
-        self.writeh('# This file was converted from %s by TOSCA.py on %s.\n\n' % (self.yaml_name, datetime.datetime.utcnow()))
+        self.writeh('# This file was converted from %s by ToscaPy on %s.\n\n' % (self.yaml_name, datetime.datetime.utcnow()))
     
     def writeh(self, s):
         self.ioh.write(s)
@@ -123,7 +126,6 @@ class DefaultEngine(Engine):
         self.convert_parser = ArgumentParser(prog='convert', description='converts YAML to Python')
         self.convert_parser.add_argument('name', help='YAML blueprint filename')
         self.convert_parser.add_argument('-o', '--output', help='output directory', default='output')
-        self.convert_parser.add_argument('-f', '--force', action='store_true', help='always create a new Python file even if it is not out of date')
     
     def handle(self, command):
         if command.name == 'convert':
@@ -144,7 +146,7 @@ class DefaultEngine(Engine):
             source = urllib.urlopen(name).read()
         else:
             if not os.path.isfile(name):
-                name = root + '/' + name
+                name = os.path.join(root, name)
             with open(name, 'r') as f:
                 source = f.read()
             
@@ -167,9 +169,11 @@ class DefaultEngine(Engine):
         
         modules = {}
         
+        # Type modules
+        
         if ('node_types' in blueprint) or ('relationships' in blueprint):
-            # Make sure we have the modules and that the classes are in order
-            # TODO: this is buggy :(
+            # Gather node types and relationships
+            # We'll use 'root' to differentiate between the two class hieararchies
             classes = {}
             if 'node_types' in blueprint:
                 for c in blueprint['node_types'].values():
@@ -185,6 +189,8 @@ class DefaultEngine(Engine):
                         c['interfaces'].update(c['target_interfaces'])
                 classes.update(blueprint['relationships'])
                 
+            # Make sure we have the modules and that the classes are in order
+            # TODO: this is buggy :(
             for type_name, t in classes.iteritems():
                 module_name, class_name = parse_type_name(type_name, main_module_name)
 
@@ -213,8 +219,6 @@ class DefaultEngine(Engine):
             for module in modules.itervalues():
                 module.writeh('from tosca.interfaceable import interfacemethod\n')
                     
-                #module.write('\n#\n# Node types\n#\n')
-                
                 for class_name in module.class_names:
                     t = module.class_data[class_name]
                 
@@ -230,16 +234,27 @@ class DefaultEngine(Engine):
                     else:
                         module.write('(%s)' % root)
                     module.write(':\n')
-                    module.write("    ''' %s '''\n" % (join_type_name(module.module_name, class_name)))
+                    module.write("    ''' %s '''\n" % join_type_name(module.module_name, class_name))
                     
                     # Properties
                     if 'properties' in t:
                         module.write('\n    def __init__(self')
+                        has_description = False
                         for property_name, p in t['properties'].iteritems():
                             module.write(', %s' % property_name)
                             if 'default' in p:
                                 module.write('=%s' % repr(p['default']))
+                            else:
+                                module.write('=None')
+                            if 'description' in p:
+                                has_description = True
                         module.write('):\n')
+                        if has_description:
+                            module.write("        '''\n")
+                            for property_name, p in t['properties'].iteritems():
+                                if 'description' in p:
+                                    module.write('        %s -- %s\n' % (property_name, one_liner(p['description'])))
+                            module.write("        '''\n")
                         for property_name, p in t['properties'].iteritems():
                             module.write('        self.%s = %s\n' % (property_name, property_name))
                     
@@ -257,12 +272,23 @@ class DefaultEngine(Engine):
                                 module.write('\n    @interfacemethod(%s, %s)\n' % (repr(interface_name), repr(method_name)))
                                 module.write('    def %s(self, ctx):\n' % py_method_name)
                                 if 'implementation' in m:
+                                    ii = m['implementation']
                                     if 'executor' in m:
-                                        module.write('        ctx.executors.%s.%s(self, ctx)\n' % (m['executor'], m['implementation']))
+                                        module.write('        ctx.executors.%s.%s(self, ctx' % (m['executor'], ii))
+                                    elif ii.endswith('.sh'): # TODO: this looks wrong, but NodeCellar does this
+                                        module.write('        ctx.run(self, %s' % repr(ii))
                                     else:
-                                        module.write('        ctx.%s(self, ctx)\n' % m['implementation'])
+                                        module.write('        ctx.%s(self, ctx' % ii)
+                                    if 'inputs' in m:
+                                        for input_name, i in  m['inputs'].iteritems():
+                                            module.write(', %s=%s' % (input_name, self.parse_input(i)))
+                                    module.write(')\n')
+                                elif m:
+                                    module.write('        ctx.run(self, %s)\n' % repr(m))
                                 else:
                                     module.write('        pass\n')
+
+            # Blueprint module
 
             if main_module_name in modules:
                 main_module = modules[main_module_name]
@@ -297,13 +323,13 @@ class DefaultEngine(Engine):
                 main_module.write('):\n')
                 main_module.write("        '''\n")
                 for name, i in blueprint['inputs'].iteritems():
-                    main_module.write('        %s -- %s\n' % (name, i['description'].strip()))
+                    main_module.write('        %s -- %s\n' % (name, one_liner(i['description'])))
                 main_module.write("        '''\n")
                 for name in blueprint['inputs'].iterkeys():
                     main_module.write('        self.%s = %s\n' % (name, name))
             
             if 'node_templates' in blueprint:
-                # Make sure we have tne node templates in order
+                # Make sure we have the node templates in order
                 # TODO: this is buggy :(
                 template_names = []
                 for template_name, t in blueprint['node_templates'].iteritems():
@@ -341,7 +367,7 @@ class DefaultEngine(Engine):
                                                     main_module.write(', ')
                                                 else:
                                                     wrote_first = True
-                                                main_module.write('%s=%s' % (input_name, repr(ii))) # TODO
+                                                main_module.write('%s=%s' % (input_name, self.parse_input(ii)))
                                         main_module.write(')\n')
                             else:
                                 main_module.write('        self.%s.relate(self.%s, %s)\n' % (template_name, r['target'], r['type']))
@@ -352,7 +378,7 @@ class DefaultEngine(Engine):
                     main_module.write('\n    def get_%s(self):\n' % output_name)
                     if 'description' in o:
                         main_module.write("        '''\n")
-                        main_module.write('        %s\n' % o['description'].strip())
+                        main_module.write('        %s\n' % one_liner(o['description']))
                         main_module.write("        '''\n")
                     main_module.write('        %s = {}\n' % output_name)
                     for value_name, v in o['value'].iteritems():
@@ -364,5 +390,6 @@ class DefaultEngine(Engine):
         for module in modules.values():
             module.save()
 
-    def literal_string(self, value):
+    def parse_input(self, value):
+        # TODO
         return repr(value)

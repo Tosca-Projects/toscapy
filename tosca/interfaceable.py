@@ -52,6 +52,10 @@ in the class:
     class Greeter:
         __metaclass__ = Interfaceable
         _get_interface_method_name = 'cast_to'
+        ...
+
+    g = Greeter('god')
+    g.cast_to('english').hello('Tal')
 
 By default, the 'interface' method is not thread-safe. To guarantee thread safety,
 set a lock at self._interface_lock:
