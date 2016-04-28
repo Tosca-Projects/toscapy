@@ -171,7 +171,7 @@ class DefaultEngine(Engine):
         
         # Type modules
         
-        if ('node_types' in blueprint) or ('relationships' in blueprint):
+        if ('node_types' in blueprint) or ('relationships' in blueprint) or ('data_types' in blueprint):
             # Gather node types and relationships
             # We'll use 'root' to differentiate between the two class hieararchies
             classes = {}
@@ -188,6 +188,10 @@ class DefaultEngine(Engine):
                     if 'target_interfaces' in c:
                         c['interfaces'].update(c['target_interfaces'])
                 classes.update(blueprint['relationships'])
+            if 'data_types' in blueprint:
+                for c in blueprint['data_types'].values():
+                    c['root'] = 'tosca.blueprint.Data'
+                classes.update(blueprint['data_types'])
                 
             # Make sure we have the modules and that the classes are in order
             # TODO: this is buggy :(
@@ -317,7 +321,7 @@ class DefaultEngine(Engine):
                 main_module.write("    '''\n")
 
             if 'inputs' in blueprint:
-                main_module.write('\n    def __init__(self')
+                main_module.write('\n    def __init__(self, ctx')
                 for name in blueprint['inputs'].iterkeys():
                     main_module.write(', %s' % name)
                 main_module.write('):\n')
@@ -327,6 +331,19 @@ class DefaultEngine(Engine):
                 main_module.write("        '''\n")
                 for name in blueprint['inputs'].iterkeys():
                     main_module.write('        self.%s = %s\n' % (name, name))
+            
+            main_module.write('\n        ctx.blueprint = self\n')
+
+            if 'plugins' in blueprint:
+                main_module.write('\n        # Plugins\n')
+                for plugin_name, p in blueprint['plugins'].iteritems():
+                    if 'executor' in p:
+                        main_module.write('        setattr(ctx, %s, ctx.%s(ctx))\n' % (repr(plugin_name), p['executor']))
+                    else:
+                        main_module.write('        setattr(ctx, %s, ctx.%s(ctx)\n' % (repr(plugin_name), p))
+                    if 'install' in p:
+                        if p['install']:
+                            main_module.write('        ctx.%s.install(ctx)\n' % plugin_name)
             
             if 'node_templates' in blueprint:
                 # Make sure we have the node templates in order
@@ -355,7 +372,7 @@ class DefaultEngine(Engine):
                     if 'relationships' in t:
                         for r in t['relationships']:
                             if 'target_interfaces' in r:
-                                main_module.write('        r = self.%s.relate(self.%s, %s)\n' % (template_name, r['target'], r['type']))
+                                main_module.write('        r = self.%s.relate(ctx, self.%s, %s)\n' % (template_name, r['target'], r['type']))
                                 for interface_name, i in r['target_interfaces'].iteritems():
                                     main_module.write('        i = r.interface[%s]\n' % repr(interface_name))
                                     for call_name, c in i.iteritems():
@@ -370,12 +387,12 @@ class DefaultEngine(Engine):
                                                 main_module.write('%s=%s' % (input_name, self.parse_input(ii)))
                                         main_module.write(')\n')
                             else:
-                                main_module.write('        self.%s.relate(self.%s, %s)\n' % (template_name, r['target'], r['type']))
-
+                                main_module.write('        self.%s.relate(ctx, self.%s, %s)\n' % (template_name, r['target'], r['type']))
+                    
             if 'outputs' in blueprint:
                 main_module.write('\n    # Outputs\n')
                 for output_name, o in blueprint['outputs'].iteritems():
-                    main_module.write('\n    def get_%s(self):\n' % output_name)
+                    main_module.write('\n    def get_%s(self, ctx):\n' % output_name)
                     if 'description' in o:
                         main_module.write("        '''\n")
                         main_module.write('        %s\n' % one_liner(o['description']))
@@ -386,6 +403,36 @@ class DefaultEngine(Engine):
                             arguments = v['get_property']
                             main_module.write('        %s[%s] = self.%s.%s\n' % (output_name, repr(value_name), arguments[0], arguments[1]))
                     main_module.write('        return %s\n' % output_name)
+            
+            
+            if 'workflows' in blueprint:
+                main_module.write('\n    # Workflows\n')
+                for workflow_name, w in blueprint['workflows'].iteritems():
+                    main_module.write('\n    def do_%s(self, ctx' % workflow_name)
+                    has_description = False
+                    if 'parameters' in w:
+                        for parameter_name, p in w['parameters'].iteritems():
+                            if 'default' in p:
+                                main_module.write(', %s=%s' % (parameter_name, repr(p['default'])))
+                            else:
+                                main_module.write(', %s=None' % parameter_name)
+                            if 'description' in p:
+                                has_description = True
+                    main_module.write('):\n')
+                    if has_description:
+                        main_module.write("        '''\n")
+                        for parameter_name, p in w['parameters'].iteritems():
+                            if 'description' in p:
+                                main_module.write('        %s -- %s\n' % (parameter_name, one_liner(p['description'])))
+                        main_module.write("        '''\n")
+                    if 'mapping' in w:
+                        main_module.write('        ctx.%s(ctx' % w['mapping'])
+                    else:
+                        main_module.write('        ctx.%s(ctx' % w)
+                    if 'parameters' in w:
+                        for parameter_name, p in w['parameters'].iteritems():
+                            main_module.write(', %s' % parameter_name)
+                    main_module.write(')\n')
         
         for module in modules.values():
             module.save()

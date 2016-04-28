@@ -11,7 +11,7 @@ The starting point is a `tosca.py` command, which is extensible by attaching you
 
 TOSCA's object-oriented declarative format lends itself pretty well to being implemented in Python ... for the most part:
 
-* "Node types" become Python classes. Obviously.
+* "Node types" and "data types" become Python classes. Obviously.
 * "Node templates" become instances of these classes.
 * "Relationships" between node templates also become classes.
 * "Inputs" become method arguments.
