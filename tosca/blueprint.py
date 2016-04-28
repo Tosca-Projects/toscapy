@@ -1,57 +1,22 @@
 
-class Context:
-    def __init__(self):
-        self.imports = []
-        self.input = {}
-        self.output = {}
-        self.node_template = {}
+from interfaceable import Interfaceable
 
-class Import:
-    def __init__(self, url):
-        self.url = url
+class Blueprint:
+    pass
 
-class Input:
-    def __init__(self, description=None):
-        self.description = description
-
-class Output:
-    def __init__(self, description=None):
-        self.description = description
-        self.value = {}
-
-class Value:
-    def __init__(self, value):
-        self.value = value
+class Node:
+    __metaclass__ = Interfaceable
     
-    def get(self):
-        return self.value
-
-class MethodValue:
-    def __init__(self, scope, method, arguments):
-        self.scope = scope
-        self.method = method
-        self.arguments = arguments
-
-    def get(self):
-        if self.scope:
-            m = getattr(self.scope, self.method)
-        else:
-            m = globals()[self.method]
-        return m(**self.arguments)
-
-class NodeTemplate:
-    def __init__(self, type):
-        self.type = type
+    def __init__(self):
         self.relationships = []
-        self.property = {}
+    
+    def relate(self, target, relationship_class):
+        r = relationship_class(target)
+        self.relationships.append(r)
+        return r
 
 class Relationship:
-    def __init__(self, type):
-        self.type = type
-        self.target = None
-        self.target_interface = {}
-        self.property = {}
+    __metaclass__ = Interfaceable
 
-class TargetInterface:
-    def __init__(self):
-        pass
+    def __init__(self, target):
+        self.target = target

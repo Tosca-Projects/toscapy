@@ -25,7 +25,6 @@ Engines can modify the ctx and also put their own stuff in it.
 '''
 
 import sys
-from context import Context
 from engine import Command
 from default_engine import DefaultEngine
 
@@ -38,7 +37,6 @@ def main():
     command = Command()
     command.name = sys.argv[1]
     command.arguments = sys.argv[2:]
-    command.ctx = Context()
     for engine in engines:
         engine.handle(command)
         if not command.handled:
