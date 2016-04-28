@@ -11,14 +11,13 @@ The starting point is a `tosca.py` command, which is extensible by attaching you
 
 TOSCA's object-oriented declarative format lends itself pretty well to being implemented in Python ... for the most part:
 
-* `node_types` and `data_types` become Python classes. Obviously.
-* `node_templates` become instances of these classes.
-* `relationships` between node templates also become classes.
+* `node_types`, `data_types`, and `relationships` become Python classes. Obviously.
+* `node_templates` become instances of these `node_types` classes.
 * `inputs` become method arguments.
 * `properties` become class properties, and in some cases are initialized by class constructors. 
 * Python supports a dot notation for namespaces, though it does require multiple files and directories to achieve it, and these will. This actually lends itself to nicely organized code.
 * This means that YAML `imports` do not exactly become Python imports. Python imports depend on the namespace structure.
-* Python does not support interface-oriented programming, though this is used extensively in TOSCA. For this reason, we've implemented our own little [interface mechanism for Python](tosca-py/blob/master/tosca/interfaceable.py). It could be useful in other projects, too!
+* Python does not support interface-oriented programming, though this is used extensively in TOSCA. For this reason, we've implemented our own little [interface mechanism for Python](toscapy/blob/master/tosca/interfaceable.py). It could be useful in other projects, too!
 
 Quickstart
 ----------
