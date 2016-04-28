@@ -284,8 +284,11 @@ class DefaultEngine(Engine):
                                     else:
                                         module.write('        ctx.%s(self, ctx' % ii)
                                     if 'inputs' in m:
-                                        for input_name, i in  m['inputs'].iteritems():
-                                            module.write(', %s=%s' % (input_name, self.parse_input(i)))
+                                        for input_name, iii in  m['inputs'].iteritems():
+                                            if 'default' in iii:
+                                                module.write(', %s=%s' % (input_name, self.parse_input(iii['default'])))
+                                            else:
+                                                module.write(', %s=%s' % (input_name, self.parse_input(iii)))
                                     module.write(')\n')
                                 elif m:
                                     module.write('        ctx.run(self, %s)\n' % repr(m))
