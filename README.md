@@ -5,6 +5,8 @@ An _experimental_ toolkit for using [OASIS TOSCA](https://www.oasis-open.org/com
 
 It works by converting the YAML into clean, idiomatic, "pythonic" Python. Once you're in Python, life is good: you can forget about YAML and its limitations and work in a fully programmable environment.
 
+Check out the [example output](example-output).
+
 Why Python? Ruby, for example, might be better suited for crafting DSLs. But the potential cleanliness and readability of Python are unmatched. It is a favorite language for cloud scripting.
 
 The starting point is a `tosca.py` command, which is extensible by attaching your own "engines" to handle commands. Thus you can build a pipeline starting with the YAML, transparently translating it into Python in the first step, and then going on to do great things, such as deploying your blueprint in a cloud, creating a monitoring profile for it, etc.
